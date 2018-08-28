@@ -14,6 +14,8 @@ class PLAAD:
         for resource in self.resources:
             # print(resource.compromised_log)
             print(len([x for x in resource.compromised_log if x]) / self.total_timesteps)
+        print("attacker cost:", self.attacker.calculate_total_cost())
+        print("defender cost:", self.defender.calculate_total_cost())
 
     def advance_timestep(self):
         for resource in self.resources:
@@ -94,21 +96,67 @@ class ExponentialAttack:
         # checks whether the attack succeeded in the previous timestep and advances one timestep
         return random.random() < self.rate / self.timesteps_per_unit
 
-class GreedyAttacker:
-    def __init__(self, resources):
+class Attacker:
+    def __init__(self, resources, fixed_attack_cost, ongoing_attack_cost, timesteps_per_unit):
         self.resources = resources
+        self.fixed_attack_cost = fixed_attack_cost
+        # the cost to start an attack
+        self.ongoing_attack_cost = ongoing_attack_cost
+        # the cost per unit time to keep an attack going
+        self.timesteps_per_unit = timesteps_per_unit
+        # the number of timesteps per unit time
+        self.attacks_count = 0
+        # how many attacks this attacker has made
+        self.attack_timesteps_count = 0
+        # counts the total time of ongoing attacks
 
+    def start_attack(self, resource):
+        # attacks should always be started by calling this function
+        resource.start_attack()
+        self.attacks_count += 1
+
+    def calculate_ongoing_costs(self):
+        for resource in resources:
+            if resource.attack:
+                self.attack_timesteps_count += 1
+
+    def calculate_total_cost(self):
+        return (self.attacks_count * self.fixed_attack_cost) + (self.attack_timesteps_count * self.ongoing_attack_cost / self.timesteps_per_unit)
+
+class GreedyAttacker(Attacker):
     def take_actions(self):
         for resource in self.resources:
             if not resource.compromised and resource.attackable() and not resource.attack:
-                resource.start_attack()
+                self.start_attack(resource)
 
-class PeriodicDefender:
-    def __init__(self, resources, periods, timesteps_per_unit):
+class Defender:
+    def __init__(self, resources, take_cost, morph_cost):
+        self.resources = resources
+        self.take_cost = take_cost
+        self.morph_cost = morph_cost
+        self.take_count = 0
+        # how many takes the defender has made
+        self.morph_count = 0
+        # how many morphs the defender has made
+
+    def take(self, resource):
+        resource.defender_take()
+        self.take_count += 1
+
+    def morph(self, resource):
+        resource.defender_morph()
+        self.morph_count += 1
+
+    def calculate_total_cost(self):
+        return self.take_count * self.take_cost + self.morph_count + self.morph_cost
+
+
+class PeriodicDefender(Defender):
+    def __init__(self, resources, take_cost, morph_cost, timesteps_per_unit, periods):
         if len(resources) != len(periods):
             raise ArrayLengthMismatchError()
 
-        self.resources = resources
+        super().__init__(resources, take_cost, morph_cost)
         self.periods = periods
         # periods[i] contains the time in units between successive take moves this defender makes on resources[i]
         self.timesteps_per_unit = timesteps_per_unit
@@ -116,11 +164,12 @@ class PeriodicDefender:
         self.current_timestep = 0
         # the number of timesteps since the statrt of the game
 
+
     def take_actions(self):
         for i in range(len(self.resources)):
             if math.floor(self.current_timestep / self.timesteps_per_unit / self.periods[i]) < math.floor((self.current_timestep + 1) / self.timesteps_per_unit / self.periods[i]) :
                 # we have reached the end of a period
-                self.resources[i].defender_take()
+                self.take(self.resources[i])
         self.current_timestep += 1
 
 class ImpossibleAttackError(Exception):

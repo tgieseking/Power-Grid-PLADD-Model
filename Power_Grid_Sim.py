@@ -8,5 +8,7 @@ resource_1 = Resource(base_attack, learned_attack, lambda: True)
 resource_2 = Resource(base_attack, learned_attack, lambda: True)
 resource_3 = Resource(base_attack, learned_attack, lambda: attackable_helper([[resource_0, resource_1], [resource_2]]))
 resources = [resource_0, resource_1, resource_2, resource_3]
-plaad_game = PLAAD(resources, GreedyAttacker(resources), PeriodicDefender(resources, [1, 1, 3, 10], timesteps_per_unit))
+attacker = GreedyAttacker(resources, 1, 1, timesteps_per_unit)
+defender = PeriodicDefender(resources, 1, 1, timesteps_per_unit, [1, 1, 3, 10])
+plaad_game = PLAAD(resources, attacker, defender)
 plaad_game.run_game()
