@@ -19,12 +19,14 @@ class PLAAD:
         for resource in self.resources:
             resource.resolve_attacks()
         self.defender.take_actions()
+        for resource in self.resources:
+            resource.cancel_if_unattackable()
         self.attacker.take_actions()
         for resource in self.resources:
             resource.log_status()
 
 class Resource:
-    def __init__(self, base_attack, learned_attack):
+    def __init__(self, base_attack, learned_attack, attackable):
         self.compromised = False
         # whether the attacker has control of the resource
         self.information_gained = False
@@ -37,6 +39,8 @@ class Resource:
         # the ongoing attack object, if any
         self.compromised_log = []
         # keeps track of whether this resource was compromised at each timestep
+        self.attackable = attackable
+        # a function that says whether the attacker can attack this resource
 
     def resolve_attacks(self):
         # checks whether any ongoing attacks succeed
@@ -45,8 +49,16 @@ class Resource:
             self.information_gained = True
             self.attack = None
 
+    def cancel_if_unattackable(self):
+        # Cancels ongoing attacks on this resource if it is not cancel_if_unattackable
+        if not self.attackable():
+            self.attack = None
+
     def start_attack(self):
         # the attacker starts to attack this resource
+        if not self.attackable():
+            raise ImpossibleAttackError()
+
         if self.information_gained:
             self.attack = self.learned_attack()
         else:
@@ -64,6 +76,11 @@ class Resource:
 
     def log_status(self):
         self.compromised_log.append(self.compromised)
+
+def attackable_helper(resource_list_list):
+    # used to express arbitrary boolean expressions on whether resources are compromised
+    # given a list of list of resources [[r11, ..., r1m], ..., [rN1, ..., rNn]] returns (r11 and ... and r1m) or ... or (rN1 and .. and rNn)
+    return any([all([resource.compromised for resource in resource_list]) for resource_list in resource_list_list])
 
 class ExponentialAttack:
     # An attack whose underlying probability distribution is an exponential distribution
@@ -83,7 +100,7 @@ class GreedyAttacker:
 
     def take_actions(self):
         for resource in self.resources:
-            if not resource.compromised and not resource.attack:
+            if not resource.compromised and resource.attackable() and not resource.attack:
                 resource.start_attack()
 
 class PeriodicDefender:
@@ -102,3 +119,6 @@ class PeriodicDefender:
                 # we have reached the end of a period
                 self.resources[i].defender_take()
         self.current_timestep += 1
+
+class ImpossibleAttackError(Exception):
+    pass
