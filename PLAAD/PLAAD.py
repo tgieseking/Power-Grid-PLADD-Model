@@ -1,4 +1,20 @@
 import random
+class PLAAD:
+    def __init__(self, resources, attacker, defender, total_timesteps = 10000):
+        self.attacker = attacker
+        self.defender = defender
+        self.resources = resources
+        self.total_timesteps = total_timesteps
+
+    def run_game(self):
+        for i in range(self.total_timesteps):
+            self.advance_timestep()
+
+    def advance_timestep(self):
+        for resource in self.resources:
+            resource.resolve_attacks()
+        self.defender.take_actions()
+        self.attacker.take_actions()
 
 class Resource:
     def __init__(self, base_attack, learned_attack):
@@ -18,6 +34,7 @@ class Resource:
         if self.attack and self.attack.attack_succeeded():
             self.compromised = True
             self.information_gained = True
+            self.attack = None
 
     def start_attack(self):
         # the attacker starts to attack this resource
@@ -41,34 +58,22 @@ class ExponentialAttack:
     def __init__(self, rate, timesteps_per_time):
         self.rate = rate
         # the rate of success per unit time
-        self.timesteps_per_time
+        self.timesteps_per_time = timesteps_per_time
         # the number of timesteps per unit time
 
     def attack_succeeded(self):
         # checks whether the attack succeeded in the previous timestep and advances one timestep
         return random.rand() < self.rate / self.timesteps_per_time
 
-class Attacker:
+class GreedyAttacker:
+    def __init__(self, resources):
+        self.resources = resources
+
     def take_actions(self):
-        pass
+        for resource in self.resources:
+            if not resource.compromised and not resource.attack:
+                resource.start_attack()
 
 class Defender:
     def take_actions(self):
         pass
-
-class PLAAD:
-    def __init__(self, resources, attacker = Attacker(), defender = Defender(), total_timesteps = 10000):
-        self.attacker = attacker
-        self.defender = defender
-        self.resources = resources
-        self.total_timesteps = total_timesteps
-
-    def run_game(self):
-        for i in range(self.total_timesteps):
-            self.advance_timestep()
-
-    def advance_timestep(self):
-        for resource in self.resources:
-            resource.resolve_attacks()
-        self.defender.take_actions()
-        self.attacker.take_actions()
