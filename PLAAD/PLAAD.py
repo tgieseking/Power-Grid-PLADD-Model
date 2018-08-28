@@ -1,4 +1,6 @@
 import random
+import math
+
 class PLAAD:
     def __init__(self, resources, attacker, defender, total_timesteps = 10000):
         self.attacker = attacker
@@ -74,6 +76,19 @@ class GreedyAttacker:
             if not resource.compromised and not resource.attack:
                 resource.start_attack()
 
-class Defender:
+class PeriodicDefender:
+    def __init__(self, resources, periods, timesteps_per_unit):
+        self.resources = resources
+        self.periods = periods
+        # periods[i] contains the time in units between successive take moves this defender makes on resources[i]
+        self.timesteps_per_unit = timesteps_per_unit
+        # the number of timesteps that are run per unit time
+        self.current_timestep = 0
+        # the number of timesteps since the statrt of the game
+
     def take_actions(self):
-        pass
+        for i in range(len(self.resources)):
+            if math.floor(self.current_timestep / self.timesteps_per_unit / self.periods[i]) < math.floor((self.current_timestep + 1) / self.timesteps_per_unit / self.periods[i]) :
+                # we have reached the end of a period
+                self.resources[i].defender_take()
+        self.current_timestep += 1
