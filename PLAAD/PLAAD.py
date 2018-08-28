@@ -11,12 +11,17 @@ class PLAAD:
     def run_game(self):
         for i in range(self.total_timesteps):
             self.advance_timestep()
+        for resource in self.resources:
+            # print(resource.compromised_log)
+            print(len([x for x in resource.compromised_log if x]) / self.total_timesteps)
 
     def advance_timestep(self):
         for resource in self.resources:
             resource.resolve_attacks()
         self.defender.take_actions()
         self.attacker.take_actions()
+        for resource in self.resources:
+            resource.log_status()
 
 class Resource:
     def __init__(self, base_attack, learned_attack):
@@ -30,6 +35,8 @@ class Resource:
         # the initializer for a learned attack object
         self.attack = None
         # the ongoing attack object, if any
+        self.compromised_log = []
+        # keeps track of whether this resource was compromised at each timestep
 
     def resolve_attacks(self):
         # checks whether any ongoing attacks succeed
@@ -40,7 +47,6 @@ class Resource:
 
     def start_attack(self):
         # the attacker starts to attack this resource
-        print("attack")
         if self.information_gained:
             self.attack = self.learned_attack()
         else:
@@ -55,6 +61,9 @@ class Resource:
         self.attack = None
         self.information_gained = False
         self.compromised = False
+
+    def log_status(self):
+        self.compromised_log.append(self.compromised)
 
 class ExponentialAttack:
     # An attack whose underlying probability distribution is an exponential distribution
