@@ -105,6 +105,9 @@ class GreedyAttacker:
 
 class PeriodicDefender:
     def __init__(self, resources, periods, timesteps_per_unit):
+        if len(resources) != len(periods):
+            raise ArrayLengthMismatchError()
+
         self.resources = resources
         self.periods = periods
         # periods[i] contains the time in units between successive take moves this defender makes on resources[i]
@@ -121,4 +124,7 @@ class PeriodicDefender:
         self.current_timestep += 1
 
 class ImpossibleAttackError(Exception):
+    pass
+
+class ArrayLengthMismatchError(Exception):
     pass
