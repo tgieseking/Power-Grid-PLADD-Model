@@ -40,10 +40,11 @@ class Resource:
 
     def start_attack(self):
         # the attacker starts to attack this resource
+        print("attack")
         if self.information_gained:
-            self.learned_attack()
+            self.attack = self.learned_attack()
         else:
-            self.base_attack()
+            self.attack = self.base_attack()
 
     def defender_take(self):
         # the defender makes the take move
@@ -65,7 +66,7 @@ class ExponentialAttack:
 
     def attack_succeeded(self):
         # checks whether the attack succeeded in the previous timestep and advances one timestep
-        return random.rand() < self.rate / self.timesteps_per_time
+        return random.random() < self.rate / self.timesteps_per_time
 
 class GreedyAttacker:
     def __init__(self, resources):
