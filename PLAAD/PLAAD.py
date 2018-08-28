@@ -67,15 +67,15 @@ class Resource:
 
 class ExponentialAttack:
     # An attack whose underlying probability distribution is an exponential distribution
-    def __init__(self, rate, timesteps_per_time):
+    def __init__(self, rate, timesteps_per_unit):
         self.rate = rate
         # the rate of success per unit time
-        self.timesteps_per_time = timesteps_per_time
+        self.timesteps_per_unit = timesteps_per_unit
         # the number of timesteps per unit time
 
     def attack_succeeded(self):
         # checks whether the attack succeeded in the previous timestep and advances one timestep
-        return random.random() < self.rate / self.timesteps_per_time
+        return random.random() < self.rate / self.timesteps_per_unit
 
 class GreedyAttacker:
     def __init__(self, resources):
