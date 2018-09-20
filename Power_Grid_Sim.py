@@ -1,4 +1,4 @@
-from PLAAD.PLAAD import *
+from PLADD.PLADD import *
 
 timesteps_per_unit = 100
 base_attack = lambda: ExponentialAttack(0.3, timesteps_per_unit)
@@ -10,5 +10,5 @@ resource_3 = Resource(base_attack, learned_attack, lambda: attackable_helper([[r
 resources = [resource_0, resource_1, resource_2, resource_3]
 attacker = GreedyAttacker(resources, 1, 1, timesteps_per_unit)
 defender = PeriodicDefender(resources, 1, 1, timesteps_per_unit, [1, 1, 3, 10])
-plaad_game = PLAAD(resources, attacker, defender)
-plaad_game.run_game()
+pladd_game = PLADD(resources, attacker, defender)
+pladd_game.run_game()
