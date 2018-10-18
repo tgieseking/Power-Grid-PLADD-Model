@@ -65,3 +65,11 @@ class MarkovNode:
             total += self.transitions[index][1]
             index += 1
         return self.transitions[index - 1][0]
+
+def select_from_dist(distribution):
+    rand_double = random.random()
+    total = 0.0
+    for key in distribution:
+        total += distribution[key]
+        if total >= rand_double:
+            return key
