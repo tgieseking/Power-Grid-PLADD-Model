@@ -7,15 +7,19 @@ class PLADD:
         self.defender = defender
         self.resources = resources
         self.total_timesteps = total_timesteps
+        self.first_compromised = None
 
     def run_game(self):
         for i in range(self.total_timesteps):
             self.advance_timestep()
-        for resource in self.resources:
-            # print(resource.compromised_log)
-            print(len([x for x in resource.compromised_log if x]) / self.total_timesteps)
-        print("attacker cost:", self.attacker.calculate_total_cost())
-        print("defender cost:", self.defender.calculate_total_cost())
+            if (not self.first_compromised and all([resource.compromised for resource in self.resources])):
+                self.first_compromised = i
+        # for resource in self.resources:
+        #     # print(resource.compromised_log)
+        #     print(len([x for x in resource.compromised_log if x]) / self.total_timesteps)
+        # print("attacker cost:", self.attacker.calculate_total_cost())
+        # print("defender cost:", self.defender.calculate_total_cost())
+        return [resource.compromised_log for resource in self.resources], self.first_compromised
 
     def advance_timestep(self):
         for resource in self.resources:
@@ -28,7 +32,7 @@ class PLADD:
             resource.log_status()
 
 class Resource:
-    def __init__(self, base_attack, learned_attack, attackable):
+    def __init__(self, base_attack, learned_attack, attackable, attacker_fixed_cost, attacker_ongoing_cost, defender_take_cost, defender_morph_cost, timesteps_per_unit):
         self.compromised = False
         # whether the attacker has control of the resource
         self.information_gained = False
@@ -43,13 +47,33 @@ class Resource:
         # keeps track of whether this resource was compromised at each timestep
         self.attackable = attackable
         # a function that says whether the attacker can attack this resource
+        self.attacker_fixed_cost = attacker_fixed_cost
+        # the fixed cost for an attacker take move
+        self.attacker_ongoing_cost = attacker_ongoing_cost
+        # the ongoing cost for an attacker take move
+        self.defender_take_cost = defender_take_cost
+        # the cost for a defender take move
+        self.defender_morph_cost = defender_morph_cost
+        # the cost for a defender take move
+        self.attacker_take_counter = 0
+        # the number of attacker takes on this resource
+        self.attacker_ongoing_counter = 0
+        # the number of timesteps of ongoing attacks on this resource
+        self.defender_take_counter = 0
+        # the number of defender takes on this resource
+        self.defender_morph_counter = 0
+        # the number of defender morphs on this resource
+        self.timesteps_per_unit = timesteps_per_unit
+        # the number of timesteps per unit time
 
     def resolve_attacks(self):
         # checks whether any ongoing attacks succeed
-        if self.attack and self.attack.attack_succeeded():
-            self.compromised = True
-            self.information_gained = True
-            self.attack = None
+        if self.attack:
+            self.attacker_ongoing_counter += 1
+            if self.attack.attack_succeeded():
+                self.compromised = True
+                self.information_gained = True
+                self.attack = None
 
     def cancel_if_unattackable(self):
         # Cancels ongoing attacks on this resource if it is not cancel_if_unattackable
@@ -65,19 +89,28 @@ class Resource:
             self.attack = self.learned_attack()
         else:
             self.attack = self.base_attack()
+        self.attacker_take_counter += 1
 
     def defender_take(self):
         # the defender makes the take move
         self.compromised = False
+        self.defender_take_counter += 1
 
     def defender_morph(self):
         #the defender makes the morph move
         self.attack = None
         self.information_gained = False
         self.compromised = False
+        self.defender_morph_counter += 1
 
     def log_status(self):
         self.compromised_log.append(self.compromised)
+
+    def attacker_total_cost(self):
+        return (self.attacker_take_counter * self.attacker_fixed_cost) + (self.attacker_ongoing_counter * self.attacker_ongoing_cost / self.timesteps_per_unit)
+
+    def defender_total_cost(self):
+        return (self.defender_take_counter * self.defender_take_cost) + (self.defender_morph_counter * self.defender_morph_cost)
 
 def attackable_helper(resource_list_list):
     # used to express arbitrary boolean expressions on whether resources are compromised
@@ -97,31 +130,19 @@ class ExponentialAttack:
         return random.random() < self.rate / self.timesteps_per_unit
 
 class Attacker:
-    def __init__(self, resources, fixed_attack_cost, ongoing_attack_cost, timesteps_per_unit):
+    def __init__(self, resources):
         self.resources = resources
-        self.fixed_attack_cost = fixed_attack_cost
-        # the cost to start an attack
-        self.ongoing_attack_cost = ongoing_attack_cost
-        # the cost per unit time to keep an attack going
-        self.timesteps_per_unit = timesteps_per_unit
-        # the number of timesteps per unit time
-        self.attacks_count = 0
-        # how many attacks this attacker has made
-        self.attack_timesteps_count = 0
-        # counts the total time of ongoing attacks
 
     def start_attack(self, resource):
         # attacks should always be started by calling this function
         resource.start_attack()
-        self.attacks_count += 1
-
-    def calculate_ongoing_costs(self):
-        for resource in resources:
-            if resource.attack:
-                self.attack_timesteps_count += 1
 
     def calculate_total_cost(self):
-        return (self.attacks_count * self.fixed_attack_cost) + (self.attack_timesteps_count * self.ongoing_attack_cost / self.timesteps_per_unit)
+        total_cost = 0
+        for resource in self.resources:
+            total_cost += resource.attacker_total_cost()
+        return total_cost
+        # return (self.attacks_count * self.fixed_attack_cost) + (self.attack_timesteps_count * self.ongoing_attack_cost / self.timesteps_per_unit)
 
 class GreedyAttacker(Attacker):
     def take_actions(self):
@@ -130,33 +151,28 @@ class GreedyAttacker(Attacker):
                 self.start_attack(resource)
 
 class Defender:
-    def __init__(self, resources, take_cost, morph_cost):
+    def __init__(self, resources):
         self.resources = resources
-        self.take_cost = take_cost
-        self.morph_cost = morph_cost
-        self.take_count = 0
-        # how many takes the defender has made
-        self.morph_count = 0
-        # how many morphs the defender has made
 
     def take(self, resource):
         resource.defender_take()
-        self.take_count += 1
 
     def morph(self, resource):
         resource.defender_morph()
-        self.morph_count += 1
 
     def calculate_total_cost(self):
-        return self.take_count * self.take_cost + self.morph_count + self.morph_cost
+        total_cost = 0
+        for resource in self.resources:
+            total_cost += resource.defender_total_cost()
+        return total_cost
 
 
 class PeriodicDefender(Defender):
-    def __init__(self, resources, take_cost, morph_cost, timesteps_per_unit, periods):
+    def __init__(self, resources, timesteps_per_unit, periods):
         if len(resources) != len(periods):
             raise ArrayLengthMismatchError()
 
-        super().__init__(resources, take_cost, morph_cost)
+        super().__init__(resources)
         self.periods = periods
         # periods[i] contains the time in units between successive take moves this defender makes on resources[i]
         self.timesteps_per_unit = timesteps_per_unit
