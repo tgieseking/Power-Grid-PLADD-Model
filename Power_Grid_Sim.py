@@ -15,29 +15,21 @@ attacker_cost = 0
 defender_cost = 0
 
 # Initializing Markov Model
-start_node = MarkovNode(False)
-substation_node = MarkovNode(False)
-injected_node = MarkovNode(False)
-incorrect_state_node = MarkovNode(False)
-success_node = MarkovNode(True, "SUCCESS")
-failure_node = MarkovNode(True, "FAILURE")
-captured_node = MarkovNode(True, "CAPTURED")
+start_node = TransientNode()
+substation_node = TransientNode()
+injected_node = TransientNode()
+incorrect_state_node = TransientNode()
+success_node = AbsorbingNode("SUCCESS")
+failure_node = AbsorbingNode("FAILURE")
+captured_node = AbsorbingNode("CAPTURED")
 
-start_node.add_transition(substation_node, 0.5)
-start_node.add_transition(failure_node, 0.25)
-start_node.add_transition(captured_node, 0.25)
-substation_node.add_transition(injected_node, 0.5)
-substation_node.add_transition(failure_node, 0.25)
-substation_node.add_transition(captured_node, 0.25)
-injected_node.add_transition(incorrect_state_node, 0.9)
-injected_node.add_transition(failure_node, 0.05)
-injected_node.add_transition(captured_node, 0.05)
-incorrect_state_node.add_transition(success_node, 0.85)
-incorrect_state_node.add_transition(failure_node, 0.075)
-incorrect_state_node.add_transition(captured_node, 0.075)
+start_node.set_transitions({substation_node: 0.5, failure_node: 0.25, captured_node: 0.25})
+substation_node.set_transitions({injected_node: 0.5, failure_node: 0.25, captured_node: 0.25})
+injected_node.set_transitions({incorrect_state_node: 0.9, failure_node: 0.05, captured_node: 0.05})
+incorrect_state_node.set_transitions({success_node: 0.85, failure_node: 0.075, captured_node: 0.075})
 
 # To save time, we precalculate the Markov model result distribution
-model = Markov(start_node)
+model = Markov([start_node, substation_node, injected_node, incorrect_state_node], [success_node, failure_node, captured_node], start_node)
 markov_dist = model.calculate_output_probs()
 print(markov_dist)
 
