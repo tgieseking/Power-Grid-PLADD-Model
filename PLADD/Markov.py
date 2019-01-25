@@ -19,6 +19,41 @@ class Markov:
             current_node = current_node.next_node()
         return current_node.output
 
+    def calculate_state_probabilities(self, num_steps):
+        num_transient = len(self.transient_nodes)
+        num_absorbing = len(self.absorbing_nodes)
+        num_nodes = num_transient + num_absorbing
+
+        transient_matrix = np.zeros((num_transient, num_transient))
+        absorbing_matrix = np.zeros((num_transient, num_absorbing))
+
+
+        for node in self.transient_nodes:
+            for next_node in node.transitions:
+                if next_node.absorbing:
+                    absorbing_matrix[node.transient_index, next_node.absorbing_index] = node.transitions[next_node]
+                else:
+                    transient_matrix[node.transient_index, next_node.transient_index] = node.transitions[next_node]
+
+        transition_matrix = np.zeros((num_nodes, num_nodes))
+        transition_matrix[:num_transient, :num_transient] = transient_matrix
+        transition_matrix[:num_transient, num_transient:] = absorbing_matrix
+        transition_matrix[num_transient:, num_transient:] = np.eye(num_absorbing)
+        print(transition_matrix)
+
+        current_probabilies = np.zeros(num_nodes)
+        current_probabilies[self.start_node.transient_index] = 1.0
+
+        probabilities = np.zeros((num_steps, num_nodes))
+
+        for i in range(num_steps):
+            probabilities[i] = np.copy(current_probabilies)
+            current_probabilies = current_probabilies @ transition_matrix
+        return probabilities
+
+
+
+
     def calculate_output_probs(self):
         num_transient = len(self.transient_nodes)
         num_absorbing = len(self.absorbing_nodes)
@@ -51,7 +86,7 @@ class TransientNode:
     def __init__(self):
         self.absorbing = False
 
-    def set_transitions(self, transitions):
+    def set_transitions(self, transitions):]
         total_probability = sum(transitions.values())
         epsilon = 10**-6
         if abs(1.0 - total_probability) > epsilon:
