@@ -1,12 +1,12 @@
 from PLADD.PLADD import *
 from PLADD.Markov import *
 import numpy as np
-from matplotlib.pyplot import plot, show, hist
+from matplotlib.pyplot import plot, show, hist, legend, xlabel, ylabel, title
 
 # Experiment parameters
 timesteps_per_unit = 100
 total_time = 120
-num_trials = 200
+num_trials = 1000
 
 # Result data
 success_times = []
@@ -32,6 +32,8 @@ incorrect_state_node.set_transitions({success_node: 0.85, failure_node: 0.075, c
 model = Markov([start_node, substation_node, injected_node, incorrect_state_node], [success_node, failure_node, captured_node], start_node)
 markov_dist = model.calculate_output_probs()
 print(markov_dist)
+
+state_over_time = np.zeros((total_time * timesteps_per_unit, 3))
 
 for run in range(num_trials):
     #initialize the PLADD model
@@ -60,13 +62,16 @@ for run in range(num_trials):
             outcome = select_from_dist(markov_dist)
             if outcome == "SUCCESS":
                 success_times.append(time / timesteps_per_unit)
+                state_over_time[time:, 2] += 1
                 break
             elif outcome == "CAPTURED":
                 failure_times.append(time / timesteps_per_unit)
+                state_over_time[time:, 1] += 1
                 break
             elif outcome == "FAILURE":
                 for resource in pladd_game.resources:
                     resource.compromised = False
+        state_over_time[time,0] += 1
     attacker_cost += attacker.calculate_total_cost()
     defender_cost += defender.calculate_total_cost()
 
@@ -80,3 +85,18 @@ times = np.asarray(success_times + failure_times)
 print(np.average(times))
 hist(times, bins=100)
 show()
+
+state_over_time /= num_trials
+
+x = np.arange(0, total_time, 1.0/timesteps_per_unit)
+
+plot(x, state_over_time[:,0])
+plot(x, state_over_time[:,1])
+plot(x, state_over_time[:,2])
+legend(("Ongoing", "Attacker captured", "Attack succeded"))
+xlabel("Time (months)")
+ylabel("State Probability")
+title("Probabilities of Outomes Over Time: Hybrid Model")
+show()
+
+import pdb; pdb.set_trace()
