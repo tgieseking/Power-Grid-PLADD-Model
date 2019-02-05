@@ -3,6 +3,10 @@ class Component:
     Represents a mostly self-contained portion of a game.
     """
 
+    def __init__(self):
+        self.current_output = null
+        # The value that this component feeds forward to further components
+
     def advance_timestep(self):
         """
         Moves this component forward one timestep
